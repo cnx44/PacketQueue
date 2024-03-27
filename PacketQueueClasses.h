@@ -11,10 +11,12 @@
 #include <set>
 #include <unordered_map>
 
+//TODO: Decide whether station Struct should be deprecated and just leave as an ID in the network class, I'm not sure it won't give to big of a loss in encapsulation elegance
 struct Station{
     int stationId;
 };
 
+//TODO: Decide whether packet class should be turned into Struct or let it be a Class and if so why and what Method has to be declared
 class Packet{
 public:
     Packet(Station destination, Station currentStation, int size): destination(destination), currentStation(currentStation), size(size){};
@@ -25,6 +27,7 @@ private:
     int size;
 };
 
+//TODO: Define the behaviour when the link has interferences not "directly related" to the packet transfer
 class Link{
 public:
     Link(Station stationA, Station stationB, float rate, float latency):
@@ -39,6 +42,7 @@ private:
 
 };
 
+//TODO: At the moment the Network Graph cannot generate behaviors such that Stations will be linked in loops, I'm still not sure that's the behavior won't give a to big of a loss in generality
 class Network{
 public:
     void NetworkInizialization(Station stationA, Station stationB, float rate, float latency){      //METHOD: It initializes the network with 2 station and the link connecting them
@@ -79,7 +83,7 @@ public:
 
     };
 
-    void adjacencyMatrixPrint(){
+    void adjacencyMatrixPrint(){    //Temporary method using for convenience in testing phase
         for (const std::vector<int>& row : adjacencyMatrix) {
             for (int value : row) {
                 std::cout << value << " ";
