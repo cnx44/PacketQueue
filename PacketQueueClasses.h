@@ -8,8 +8,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <set>
+#include <queue>
 #include <unordered_map>
+#include <algorithm>
 
 //TODO: Decide whether station Struct should be deprecated and just leave as an ID in the network class, I'm not sure it won't give to big of a loss in encapsulation elegance
 struct Station{
@@ -42,7 +43,7 @@ private:
 
 };
 
-//TODO: At the moment the Network Graph cannot generate behaviors such that Stations will be linked in loops, I'm still not sure that's the behavior won't give a to big of a loss in generality
+//TODO: At the moment the Network Graph cannot generate behaviors such that Stations will be linked in loops, I'm still not sure that's the behavior I want and it won't give a to big of a loss in generality
 class Network{
 public:
     void NetworkInizialization(Station stationA, Station stationB, float rate, float latency){      //METHOD: It initializes the network with 2 station and the link connecting them
@@ -77,8 +78,8 @@ public:
         //As the initialization case the matrix has to be reciprocal and antisymmetric
         //the code here take care for the reciprocal propriety,
         // the antisymmetry has to be taken care on newStation creation to ensure the station inserted wasn't alredy in the list
-        adjacencyMatrix[newStation.stationId][existingStation.stationId]=1;
-        adjacencyMatrix[existingStation.stationId][newStation.stationId]=1;
+        adjacencyMatrix[newStation.stationId][existingStation.stationId] = 1;
+        adjacencyMatrix[existingStation.stationId][newStation.stationId] = 1;
 
 
     };
@@ -91,6 +92,45 @@ public:
             std::cout << std::endl;
         }
     };
+
+    //TODO: the current ambiguity that the dichotomy between Station and int, even tho their now basically the same thing, creates an uncomfortably har code to read.
+    // A possible fix is to substitute every instance of a dualism of int-Station with a METHOD which return the said station from the id
+    std::vector<Station> PathFinder(Station startStation, Station endStation){                          //METHOD: Implementation of BFS
+        std::vector<bool> visitedStation(stationsCardinality, false);          //sizeof(bool)==sizeof(char)<sizeof(int)
+        std::queue<Station> stationQueue;
+        std::vector<int> parentStationId(stationsCardinality, -1);
+
+        stationQueue.push(startStation);
+        visitedStation[startStation.stationId]=true;
+
+        while(!stationQueue.empty()){
+            Station currentStation = stationQueue.front();
+            stationQueue.pop();
+            
+            if(currentStation.stationId == endStation.stationId){
+                std::vector<Station> path;
+                for(int stationId = endStation.stationId; stationId != -1; stationId = parentStationId[stationId]){
+                    Station tempStation {stationId};
+                    path.push_back(tempStation);
+                }
+
+                std::reverse(path.begin(),path.end());
+                return path;
+            }
+
+            for(int nextStationId = 0; nextStationId<stationsCardinality; ++nextStationId){
+                if(adjacencyMatrix[currentStation.stationId][nextStationId] == 1 && !visitedStation[nextStationId]){
+                    Station unexploredStation{nextStationId};
+                    stationQueue.push(unexploredStation);
+                    visitedStation[nextStationId] = true;
+                    parentStationId[nextStationId] = currentStation.stationId;
+                }
+            }
+        }
+
+        return {};  //Empty vector, no path found
+    };
+
 
 private:
     int stationsCardinality;
