@@ -12,43 +12,31 @@
 #include <unordered_map>
 #include <algorithm>
 
-//TODO: Decide whether station Struct should be deprecated and just leave as an ID in the network class, I'm not sure it won't give to big of a loss in encapsulation elegance
 struct Station{
     int stationId;
 };
 
-//TODO: Decide whether packet class should be turned into Struct or let it be a Class and if so why and what Method has to be declared
-class Packet{
-public:
-    Packet(Station destination, Station currentStation, int size): destination(destination), currentStation(currentStation), size(size){};
-
-private:
-    Station destination;
+struct Packet{
+    Station endStation;
     Station currentStation;
     int size;
+    std::vector<Station> path;
 };
 
-//TODO: Define the behaviour when the link has interferences not "directly related" to the packet transfer
-class Link{
-public:
-    Link(Station stationA, Station stationB, float rate, float latency):
-            stationA(stationA), stationB(stationB), rate(rate), latency(latency){};
-
-private:
+struct  Link{
     Station stationA;
     Station stationB;
     float rate;
     float latency;
-    std::vector<Packet> queue;
+    std::queue<Packet> queue;
 
 };
 
-//TODO: At the moment the Network Graph cannot generate behaviors such that Stations will be linked in loops, I'm still not sure that's the behavior I want and it won't give a to big of a loss in generality
 class Network{
 public:
     void NetworkInizialization(Station stationA, Station stationB, float rate, float latency){      //METHOD: It initializes the network with 2 station and the link connecting them
         stationsCardinality = 2;
-        Link firstLink(stationA, stationB, rate, latency);
+        Link firstLink{stationA, stationB, rate, latency};
         stations.push_back(stationA);
         stations.push_back(stationB);
         links.push_back(firstLink);
@@ -59,29 +47,6 @@ public:
         tempAdjacencyMatrix[0][1] = 1;
         tempAdjacencyMatrix[1][0] = 1;
         adjacencyMatrix = tempAdjacencyMatrix;      //std::vector should automatically take care of this possible memory leak when out-of-scope
-    };
-
-    void InsertStation(Station newStation,Station existingStation, float rate, float latency){
-        stationsCardinality++;
-        Link newLink(newStation, existingStation, rate, latency);
-        stations.push_back(newStation);
-        links.push_back(newLink);
-
-        //Adaptation fo adjacency matrix on network update
-        //Creating new row with default value 0
-        adjacencyMatrix.resize(adjacencyMatrix.size()+1,std::vector(adjacencyMatrix[0].size(),0));
-        //Creating new column with default value 0
-        for (std::vector<int>& row : adjacencyMatrix) {     //I'm unaware of more efficient way to expand a std::vector "matrix" by 1 column more efficiently
-            row.resize(row.size() + 1, 0);
-        }
-
-        //As the initialization case the matrix has to be reciprocal and antisymmetric
-        //the code here take care for the reciprocal propriety,
-        // the antisymmetry has to be taken care on newStation creation to ensure the station inserted wasn't alredy in the list
-        adjacencyMatrix[newStation.stationId][existingStation.stationId] = 1;
-        adjacencyMatrix[existingStation.stationId][newStation.stationId] = 1;
-
-
     };
 
     void adjacencyMatrixPrint(){    //Temporary method using for convenience in testing phase
@@ -95,6 +60,7 @@ public:
 
     //TODO: the current ambiguity that the dichotomy between Station and int, even tho their now basically the same thing, creates an uncomfortably har code to read.
     // A possible fix is to substitute every instance of a dualism of int-Station with a METHOD which return the said station from the id
+    //TODO: switching from a BFS to a Dijkstra may be beneficial as the code is intended
     std::vector<Station> PathFinder(Station startStation, Station endStation){                          //METHOD: Implementation of BFS
         std::vector<bool> visitedStation(stationsCardinality, false);          //sizeof(bool)==sizeof(char)<sizeof(int)
         std::queue<Station> stationQueue;
@@ -131,9 +97,54 @@ public:
         return {};  //Empty vector, no path found
     };
 
+    void LinkCreator(Station newStation,Station existingStation, float rate, float latency){    //METHOD: define a link between two stations, float rate[Mb/s], float latency [s]
+        stationsCardinality++;
+        Link newLink{newStation, existingStation, rate, latency};
+        stations.push_back(newStation);
+        links.push_back(newLink);
+
+        //Adaptation fo adjacency matrix on network update
+        //Creating new row with default value 0
+        adjacencyMatrix.resize(adjacencyMatrix.size()+1,std::vector(adjacencyMatrix[0].size(),0));
+        //Creating new column with default value 0
+        for (std::vector<int>& row : adjacencyMatrix) {     //I'm unaware of more efficient way to expand a std::vector "matrix" by 1 column more efficiently
+            row.resize(row.size() + 1, 0);
+        }
+
+        //As the initialization case the matrix has to be reciprocal and antisymmetric
+        //the code here take care for the reciprocal propriety,
+        // the antisymmetry has to be taken care on newStation creation to ensure the station inserted wasn't alredy in the list
+        adjacencyMatrix[newStation.stationId][existingStation.stationId] = 1;
+        adjacencyMatrix[existingStation.stationId][newStation.stationId] = 1;
+
+
+    };
+
+    void StationCreator(){      //METHOD: used to crete ad insert in std::vector<Station> sations
+        Station newStation{stationsCardinality};
+        stations.push_back(newStation);
+        stationsCardinality++;
+    };
+
+    void PacketCreator(int size, Station starterStation, Station endStation){
+        Packet newPacket{starterStation, endStation, size, PathFinder(starterStation,endStation)};
+        Link chosenLink;
+        for (const Link& s : links) {   //Loop used to find on which link the packet should stack
+            if(s.stationA.stationId == newPacket.path[0].stationId){    // Check if the n-th station id of the std::vector<Link>
+                chosenLink = s;                                         //links the same as the starter station of the packet's path
+                chosenLink.queue.push(newPacket);
+                links.push_back(chosenLink);
+                return;     //equivalent of break when the right link is found, but more in line with Google Cpp StyleGuide
+            }
+        }
+    };
+
+    //TODO: This METHOD should act as the "next step" work in debugging, where as invoked it moves
+    // the timeline at the moment where the first packet is received and moved on the next link
+    void NextStep(){};
 
 private:
-    int stationsCardinality;
+    int stationsCardinality=0;
     std::vector<Station> stations;
     std::vector<Link> links;
     std::vector<std::vector<int>> adjacencyMatrix;
